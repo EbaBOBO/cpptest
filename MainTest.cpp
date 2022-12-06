@@ -83,10 +83,22 @@ public:
 
 class AlphabeticalAscendingStringComparer : public IStringComparer {
 public:
-	virtual bool IsFirstAboveSecond(string _first, string _second);
+    bool IsFirstAboveSecond(string _first, string _second);
 };
 
-void DoSingleThreaded(vector<string> _fileList, ESortType _sortType, string _outputName);
+class AlphabeticalDescendingStringComparer : public IStringComparer {
+public:
+    bool IsFirstAboveSecond(string _first, string _second);
+};
+
+class LastLetterAscendingStringComparer : public IStringComparer {
+public:
+    bool IsFirstAboveSecond(string _first, string _second);
+};
+
+
+
+void DoSingleThreaded(vector<string> &_fileList, ESortType _sortType, string _outputName);
 void DoMultiThreaded(vector<string> _fileList, ESortType _sortType, string _outputName);
 vector<string> ReadFile(string _fileName);
 void ThreadedReadFile(string _fileName, vector<string>* _listOut);
@@ -125,7 +137,7 @@ int main() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // The Stuff
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-void DoSingleThreaded(vector<string> _fileList, ESortType _sortType, string _outputName) {
+void DoSingleThreaded(vector<string>& _fileList, ESortType _sortType, string _outputName) {
 	clock_t startTime = clock();
 	vector<string> masterStringList;
 	for (unsigned int i = 0; i < _fileList.size(); ++i) {
@@ -134,10 +146,9 @@ void DoSingleThreaded(vector<string> _fileList, ESortType _sortType, string _out
 			masterStringList.push_back(fileStringList[j]);
 		}
 
-		masterStringList = BubbleSort(masterStringList, _sortType);
-		_fileList.erase(_fileList.begin() + i);
 	}
-	clock_t endTime = clock();
+    masterStringList = BubbleSort(masterStringList, _sortType);
+    clock_t endTime = clock();
 
 	WriteAndPrintResults(masterStringList, _outputName, endTime - startTime);
 }
@@ -172,11 +183,11 @@ vector<string> ReadFile(string _fileName) {
 		string* tempString = new string();
 		getline(fileIn, *tempString);
 
-		endOfFile = fileIn.peek() == EOF;
+
 		positionInFile = endOfFile ? ios::beg : fileIn.tellg();
 		if (!endOfFile)
 			listOut.push_back(*tempString);
-
+        endOfFile = fileIn.peek() == EOF;
 		fileIn.close();
 	}
 	return listOut; 
@@ -198,11 +209,53 @@ bool AlphabeticalAscendingStringComparer::IsFirstAboveSecond(string _first, stri
 			return false;
 		++i;
 	}
-	return (i == _second.length());
+	return (i == _first.length());
 }
-
+bool AlphabeticalDescendingStringComparer::IsFirstAboveSecond(string _first, string _second) {
+    unsigned int i = 0;
+    while (i < _first.length() && i < _second.length()) {
+        if (_first[i] >_second[i])
+            return true;
+        else if (_first[i] < _second[i])
+            return false;
+        ++i;
+    }
+    return (i == _second.length());
+}
+bool LastLetterAscendingStringComparer::IsFirstAboveSecond(string _first, string _second) {
+    if(_first[_first.size() - 1] == '\r')
+    {
+        _first = _first.substr(0, _first.size() - 1);
+    }
+    if(_second[_second.size() - 1] == '\r')
+    {
+        _second = _second.substr(0, _second.size() - 1);
+    }
+    reverse(_first.begin(), _first.end());
+    reverse(_second.begin(), _second.end());
+    unsigned int i = 0;
+    while (i < _first.length() && i < _second.length()) {
+        if (_first[i] < _second[i])
+            return true;
+        else if (_first[i] > _second[i])
+            return false;
+        ++i;
+    }
+    return (i == _first.length());
+}
 vector<string> BubbleSort(vector<string> _listToSort, ESortType _sortType) {
-	AlphabeticalAscendingStringComparer* stringSorter = new AlphabeticalAscendingStringComparer();
+	IStringComparer* stringSorter = nullptr;
+    switch(_sortType) {
+        case ESortType::AlphabeticalAscending:
+            stringSorter = new AlphabeticalAscendingStringComparer();
+            break;
+        case ESortType::AlphabeticalDescending:
+            stringSorter = new AlphabeticalDescendingStringComparer();
+            break;
+        case ESortType::LastLetterAscending:
+            stringSorter = new LastLetterAscendingStringComparer();
+            break;
+    }
 	vector<string> sortedList = _listToSort;
 	for (unsigned int i = 0; i < sortedList.size() - 1; ++i) {
 		for (unsigned int j = 0; j < sortedList.size() - 1; ++j) {
