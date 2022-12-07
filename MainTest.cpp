@@ -77,6 +77,7 @@ using namespace std;
 enum class ESortType { AlphabeticalAscending, AlphabeticalDescending, LastLetterAscending, count = 3 };
 static int ESortNum = 3;
 
+// storing the multi thread data
 typedef struct threadRead{
     vector<string> stringList;
     mutex threadRead_mxt;
@@ -106,7 +107,6 @@ void DoMultiThreaded(vector<string>& _fileList);
 vector<string> ReadFile(string _fileName);
 void ThreadedReadFile(string _fileName, threadRead_t* _listOut);
 void ThreadSort(vector<string> _listToSort, ESortType _sortType);
-vector<string> BubbleSort(vector<string>& _listToSort, ESortType _sortType);
 vector<string> MergeSort(vector<string>& _listToSort, ESortType _sortType);
 void WriteAndPrintResults(const vector<string>& _masterStringList, string _outputName, int _clocksTaken);
 
@@ -160,30 +160,29 @@ void DoSingleThreaded(vector<string>& _fileList, ESortType _sortType, string _ou
 
 
 void DoMultiThreaded(vector<string>& _fileList) {
-    vector<vector<string>> threadMasterList;
-    vector<string> masterStringList1, masterStringList2, masterStringList3;
     std::thread readFileThreads[_fileList.size()];
     threadRead_t masterStringList;
+    // multi thread read files
     for (unsigned int i = 0; i < _fileList.size(); ++i) {
         readFileThreads[i] = thread(ThreadedReadFile, _fileList[i], &masterStringList);
     }
-
 
     for (int i = 0; i< _fileList.size(); i++)
     {
         readFileThreads[i].join();
     }
 
+    // hold the sort type of multi thread
     vector<ESortType>  threadSortType;
     threadSortType.push_back(ESortType::AlphabeticalAscending);
     threadSortType.push_back(ESortType::AlphabeticalDescending);
     threadSortType.push_back(ESortType::LastLetterAscending);
 
+    // multi thread sort and write results
     std::thread workerThreads[ESortNum];
     for (unsigned int i = 0; i < ESortNum; ++i) {
         workerThreads[i] = thread(ThreadSort, masterStringList.stringList,threadSortType[i]);
     }
-
 
     for (int i = 0; i< ESortNum; i++)
     {
@@ -214,15 +213,16 @@ vector<string> ReadFile(string _fileName) {
 }
 
 void ThreadedReadFile(string _fileName, threadRead_t* _listOut) {
+    // read files then combine
     vector<string> sublist;
     sublist = ReadFile(_fileName);
     _listOut->threadRead_mxt.lock();
     _listOut->stringList.insert(_listOut->stringList.end(), sublist.begin(), sublist.end());
     _listOut->threadRead_mxt.unlock();
-
 }
 
 void ThreadSort(vector<string> _listToSort, ESortType _sortType) {
+    // sort the list string
     clock_t startTime = clock()/1000;
     string outputName;
     switch(_sortType) {
@@ -249,6 +249,7 @@ void ThreadSort(vector<string> _listToSort, ESortType _sortType) {
 // Sorting
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 bool AlphabeticalAscendingStringComparer::IsFirstAboveSecond(string _first, string _second) {
+    // Compare in ascending order
     unsigned int i = 0;
     while (i < _first.length() && i < _second.length()) {
         if (_first[i] < _second[i])
@@ -261,6 +262,7 @@ bool AlphabeticalAscendingStringComparer::IsFirstAboveSecond(string _first, stri
 }
 
 bool AlphabeticalDescendingStringComparer::IsFirstAboveSecond(string _first, string _second) {
+    // Compare in desending order
     unsigned int i = 0;
     while (i < _first.length() && i < _second.length()) {
         if (_first[i] >_second[i])
@@ -273,6 +275,7 @@ bool AlphabeticalDescendingStringComparer::IsFirstAboveSecond(string _first, str
 }
 
 bool LastLetterAscendingStringComparer::IsFirstAboveSecond(string _first, string _second) {
+    // Compare in last letter ascending order
     int i = (isalpha(_first.back()))  ? _first.length() - 1 : _first.length() - 2;
     int j = (isalpha(_second.back())) ? _second.length() - 1 : _second.length() - 2;
     while (i >= 0 && j >= 0) {
@@ -287,6 +290,7 @@ bool LastLetterAscendingStringComparer::IsFirstAboveSecond(string _first, string
 }
 
 vector<string> MergeSort(vector<string>& _listToSort, ESortType _sortType) {
+    // use merge sort to sort the list, time complexity is O(nlogn)
     IStringComparer* stringSorter = nullptr;
     switch(_sortType) {
         case ESortType::AlphabeticalAscending:
