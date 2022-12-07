@@ -60,9 +60,9 @@
 #   else
 #       include <filesystem>
 #		if __APPLE__
-			namespace fs = std::__fs::filesystem;
+namespace fs = std::__fs::filesystem;
 #		else
-			namespace fs = std::filesystem;
+namespace fs = std::filesystem;
 #		endif
 #   endif
 #endif
@@ -78,7 +78,7 @@ enum class ESortType { AlphabeticalAscending, AlphabeticalDescending, LastLetter
 
 class IStringComparer {
 public:
-	virtual bool IsFirstAboveSecond(string _first, string _second) = 0;
+    virtual bool IsFirstAboveSecond(string _first, string _second) = 0;
 };
 
 class AlphabeticalAscendingStringComparer : public IStringComparer {
@@ -95,10 +95,7 @@ class LastLetterAscendingStringComparer : public IStringComparer {
 public:
     bool IsFirstAboveSecond(string _first, string _second);
 };
-
-
-
-void DoSingleThreaded(vector<string> &_fileList, ESortType _sortType, string _outputName);
+void DoSingleThreaded(vector<string>& _fileList, ESortType _sortType, string _outputName);
 void DoMultiThreaded(vector<string> _fileList, ESortType _sortType, string _outputName);
 vector<string> ReadFile(string _fileName);
 void ThreadedReadFile(string _fileName, vector<string>* _listOut);
@@ -109,108 +106,105 @@ void WriteAndPrintResults(const vector<string>& _masterStringList, string _outpu
 // Main
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 int main() {
-	// Enumerate the directory for input files
-	vector<string> fileList;
+    // Enumerate the directory for input files
+    vector<string> fileList;
     string inputDirectoryPath = "../InputFiles";
     for (const auto & entry : fs::directory_iterator(inputDirectoryPath)) {
-		if (!fs::is_directory(entry)) {
-			fileList.push_back(entry.path().string());
-		}
-	}
-
-	// Do the stuff
-	DoSingleThreaded(fileList, ESortType::AlphabeticalAscending,	"SingleAscending");
-	DoSingleThreaded(fileList, ESortType::AlphabeticalDescending,	"SingleDescending");
-	DoSingleThreaded(fileList, ESortType::LastLetterAscending,		"SingleLastLetter");
+        if (!fs::is_directory(entry)) {
+            fileList.push_back(entry.path().string());
+        }
+    }
+    // Do the stuff
+    DoSingleThreaded(fileList, ESortType::AlphabeticalAscending,	"SingleAscending");
+    DoSingleThreaded(fileList, ESortType::AlphabeticalDescending,	"SingleDescending");
+    DoSingleThreaded(fileList, ESortType::LastLetterAscending,		"SingleLastLetter");
 #if MULTITHREADED_ENABLED
-	DoMultiThreaded(fileList, ESortType::AlphabeticalAscending,		"MultiAscending");
+    DoMultiThreaded(fileList, ESortType::AlphabeticalAscending,		"MultiAscending");
 	DoMultiThreaded(fileList, ESortType::AlphabeticalDescending,	"MultiDescending");
 	DoMultiThreaded(fileList, ESortType::LastLetterAscending,		"MultiLastLetter");
 #endif
 
-	// Wait
-	cout << endl << "Finished...";
-	getchar();
-	return 0;
+    // Wait
+    cout << endl << "Finished...";
+    getchar();
+    return 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // The Stuff
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 void DoSingleThreaded(vector<string>& _fileList, ESortType _sortType, string _outputName) {
-	clock_t startTime = clock();
-	vector<string> masterStringList;
-	for (unsigned int i = 0; i < _fileList.size(); ++i) {
-		vector<string> fileStringList = ReadFile(_fileList[i]);
-		for (unsigned int j = 0; j < fileStringList.size(); ++j) {
-			masterStringList.push_back(fileStringList[j]);
-		}
-
-	}
+    clock_t startTime = clock()/1000;
+    vector<string> masterStringList;
+    for (unsigned int i = 0; i < _fileList.size(); ++i) {
+        vector<string> fileStringList = ReadFile(_fileList[i]);
+        for (unsigned int j = 0; j < fileStringList.size(); ++j) {
+            masterStringList.push_back(fileStringList[j]);
+        }
+    }
     masterStringList = BubbleSort(masterStringList, _sortType);
-    clock_t endTime = clock();
+    clock_t endTime = clock()/1000;
 
-	WriteAndPrintResults(masterStringList, _outputName, endTime - startTime);
+    WriteAndPrintResults(masterStringList, _outputName, endTime - startTime);
 }
 
 void DoMultiThreaded(vector<string> _fileList, ESortType _sortType, string _outputName) {
-	clock_t startTime = clock();
-	vector<string> masterStringList;
-	vector<thread> workerThreads(_fileList.size());
-	for (unsigned int i = 0; i < _fileList.size() - 1; ++i) {
-		workerThreads[i] = thread(ThreadedReadFile, _fileList[i], &masterStringList);
-	}
-	
-	workerThreads[workerThreads.size() - 1].join(); 
+    clock_t startTime = clock();
+    vector<string> masterStringList;
+    vector<thread> workerThreads(_fileList.size());
+    for (unsigned int i = 0; i < _fileList.size() - 1; ++i) {
+        workerThreads[i] = thread(ThreadedReadFile, _fileList[i], &masterStringList);
+    }
 
-	masterStringList = BubbleSort(masterStringList, _sortType);
-	clock_t endTime = clock();
+    workerThreads[workerThreads.size() - 1].join();
 
-	WriteAndPrintResults(masterStringList, _outputName, endTime - startTime);
+    masterStringList = BubbleSort(masterStringList, _sortType);
+    clock_t endTime = clock();
+
+    WriteAndPrintResults(masterStringList, _outputName, endTime - startTime);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // File Processing
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 vector<string> ReadFile(string _fileName) {
-	vector<string> listOut;
-	streampos positionInFile = 0;
-	bool endOfFile = false;
-	while (!endOfFile) {
-		ifstream fileIn(_fileName, ifstream::in);
-		fileIn.seekg(positionInFile, ios::beg);
+    vector<string> listOut;
+    streampos positionInFile = 0;
+    bool endOfFile = false;
+    while (!endOfFile) {
+        ifstream fileIn(_fileName, ifstream::in);
+        fileIn.seekg(positionInFile, ios::beg);
 
-		string* tempString = new string();
-		getline(fileIn, *tempString);
-
-
-		positionInFile = endOfFile ? ios::beg : fileIn.tellg();
-		if (!endOfFile)
-			listOut.push_back(*tempString);
+        string* tempString = new string();
+        getline(fileIn, *tempString);
+        positionInFile = endOfFile ? ios::beg : fileIn.tellg();
+        if (!endOfFile)
+            listOut.push_back(*tempString);
         endOfFile = fileIn.peek() == EOF;
-		fileIn.close();
-	}
-	return listOut; 
+        fileIn.close();
+    }
+    return listOut;
 }
 
 void ThreadedReadFile(string _fileName, vector<string>* _listOut) {
-	*_listOut = ReadFile(_fileName);
+    *_listOut = ReadFile(_fileName);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Sorting
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 bool AlphabeticalAscendingStringComparer::IsFirstAboveSecond(string _first, string _second) {
-	unsigned int i = 0;
-	while (i < _first.length() && i < _second.length()) {
-		if (_first[i] < _second[i])
-			return true;
-		else if (_first[i] > _second[i])
-			return false;
-		++i;
-	}
-	return (i == _first.length());
+    unsigned int i = 0;
+    while (i < _first.length() && i < _second.length()) {
+        if (_first[i] < _second[i])
+            return true;
+        else if (_first[i] > _second[i])
+            return false;
+        ++i;
+    }
+    return (i == _first.length());
 }
+
 bool AlphabeticalDescendingStringComparer::IsFirstAboveSecond(string _first, string _second) {
     unsigned int i = 0;
     while (i < _first.length() && i < _second.length()) {
@@ -222,29 +216,22 @@ bool AlphabeticalDescendingStringComparer::IsFirstAboveSecond(string _first, str
     }
     return (i == _second.length());
 }
+
 bool LastLetterAscendingStringComparer::IsFirstAboveSecond(string _first, string _second) {
-    if(_first[_first.size() - 1] == '\r')
-    {
-        _first = _first.substr(0, _first.size() - 1);
-    }
-    if(_second[_second.size() - 1] == '\r')
-    {
-        _second = _second.substr(0, _second.size() - 1);
-    }
-    reverse(_first.begin(), _first.end());
-    reverse(_second.begin(), _second.end());
-    unsigned int i = 0;
-    while (i < _first.length() && i < _second.length()) {
-        if (_first[i] < _second[i])
+    int i = (isalpha(_first.back()))  ? _first.length() - 1 : _first.length() - 2;
+    int j = (isalpha(_second.back())) ? _second.length() - 1 : _second.length() - 2;
+    while (i >= 0 && j >= 0) {
+        if (_first[i] < _second[j])
             return true;
-        else if (_first[i] > _second[i])
+        else if (_first[i] > _second[j])
             return false;
-        ++i;
+        --i;
+        --j;
     }
-    return (i == _first.length());
+    return i == -1 && j >= 0;
 }
 vector<string> BubbleSort(vector<string> _listToSort, ESortType _sortType) {
-	IStringComparer* stringSorter = nullptr;
+    IStringComparer* stringSorter = nullptr;
     switch(_sortType) {
         case ESortType::AlphabeticalAscending:
             stringSorter = new AlphabeticalAscendingStringComparer();
@@ -255,29 +242,32 @@ vector<string> BubbleSort(vector<string> _listToSort, ESortType _sortType) {
         case ESortType::LastLetterAscending:
             stringSorter = new LastLetterAscendingStringComparer();
             break;
+        default:
+            break;
     }
-	vector<string> sortedList = _listToSort;
-	for (unsigned int i = 0; i < sortedList.size() - 1; ++i) {
-		for (unsigned int j = 0; j < sortedList.size() - 1; ++j) {
-			if (!stringSorter->IsFirstAboveSecond(sortedList[j], sortedList[j+1])) {
-				string tempString = sortedList[j];
-				sortedList[j] = sortedList[j+1];
-				sortedList[j+1] = tempString;
-			}
-		}
-	}
-	return sortedList; 
+
+    vector<string> sortedList = _listToSort;
+    for (unsigned int i = 0; i < sortedList.size() - 1; ++i) {
+        for (unsigned int j = 0; j < sortedList.size() - 1; ++j) {
+            if (!stringSorter->IsFirstAboveSecond(sortedList[j], sortedList[j+1])) {
+                string tempString = sortedList[j];
+                sortedList[j] = sortedList[j+1];
+                sortedList[j+1] = tempString;
+            }
+        }
+    }
+    return sortedList;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Output
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 void WriteAndPrintResults(const vector<string>& _masterStringList, string _outputName, int _clocksTaken) {
-	cout << endl << _outputName << "\t- Clocks Taken: " << _clocksTaken << endl;
-	
-	ofstream fileOut(_outputName + ".txt", ofstream::trunc);
-	for (unsigned int i = 0; i < _masterStringList.size(); ++i) {
-		fileOut << _masterStringList[i] << endl;
-	}
-	fileOut.close();
+    cout << endl << _outputName << "\t- Clocks Taken: " << _clocksTaken << endl;
+
+    ofstream fileOut(_outputName + ".txt", ofstream::trunc);
+    for (unsigned int i = 0; i < _masterStringList.size(); ++i) {
+        fileOut << _masterStringList[i] << endl;
+    }
+    fileOut.close();
 }
