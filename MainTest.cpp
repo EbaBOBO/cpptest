@@ -26,6 +26,7 @@
 #include <thread>
 #include <atomic>
 #include <ctime>
+#include <cctype>
 #include <vector>
 
 #ifndef INCLUDE_STD_FILESYSTEM_EXPERIMENTAL
@@ -148,7 +149,8 @@ int main() {
 void DoSingleThreaded(vector<string>& _fileList, ESortType _sortType, string _outputName) {
     clock_t startTime = clock()/1000;
     vector<string> masterStringList;
-    for (unsigned int i = 0; i < _fileList.size(); ++i) {
+    for (unsigned int i = 0; i < _fileList.size(); ++i)
+    {
         vector<string> fileStringList = ReadFile(_fileList[i]);
         masterStringList.insert(masterStringList.end(), fileStringList.begin(), fileStringList.end());
     }
@@ -192,20 +194,29 @@ void DoMultiThreaded(vector<string>& _fileList) {
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // File Processing
-////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////
 vector<string> ReadFile(string _fileName) {
     vector<string> listOut;
     streampos positionInFile = 0;
     bool endOfFile = false;
     while (!endOfFile) {
         ifstream fileIn(_fileName, ifstream::in);
+        if(!fileIn)
+        {
+            std::cout<<"ERROR: invalid file path."<<std::endl;
+            break;
+        }
         fileIn.seekg(positionInFile, ios::beg);
 
-        string* tempString = new string();
-        getline(fileIn, *tempString);
+        string tempString;
+        getline(fileIn, tempString);
         positionInFile = endOfFile ? ios::beg : fileIn.tellg();
+        string validString;
         if (!endOfFile)
-            listOut.push_back(*tempString);
+            for(int i = 0; i < tempString.length(); ++i)
+                if (isalpha(tempString[i]))
+                    validString += tempString[i];
+            listOut.push_back(tempString);
         endOfFile = fileIn.peek() == EOF;
         fileIn.close();
     }
@@ -275,7 +286,7 @@ bool AlphabeticalDescendingStringComparer::IsFirstAboveSecond(string _first, str
 }
 
 bool LastLetterAscendingStringComparer::IsFirstAboveSecond(string _first, string _second) {
-    // Compare in last letter ascending order
+//     Compare in last letter ascending order
     int i = (isalpha(_first.back()))  ? _first.length() - 1 : _first.length() - 2;
     int j = (isalpha(_second.back())) ? _second.length() - 1 : _second.length() - 2;
     while (i >= 0 && j >= 0) {
