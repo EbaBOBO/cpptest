@@ -28,6 +28,9 @@
 #include <ctime>
 #include <vector>
 
+
+#include <mutex>
+
 #ifndef INCLUDE_STD_FILESYSTEM_EXPERIMENTAL
 #   if defined(__cpp_lib_filesystem)
 #       define INCLUDE_STD_FILESYSTEM_EXPERIMENTAL 0
@@ -101,11 +104,12 @@ void DoMultiThreaded(vector<string>& _fileList);
 vector<string> ReadFile(string _fileName);
 //void ThreadedReadFile(string _fileName, vector<string>* _listOut);
 void ThreadedReadFile(vector<string> _listToSort, ESortType _sortType);
-vector<string> BubbleSort(vector<string> _listToSort, ESortType _sortType);
+vector<string> BubbleSort(vector<string>& _listToSort, ESortType _sortType);
+vector<string> MergeSort(vector<string>& _listToSort, ESortType _sortType);
 void WriteAndPrintResults(const vector<string>& _masterStringList, string _outputName, int _clocksTaken);
 
 void test();
-
+mutex mtx;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Main
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -153,7 +157,8 @@ void DoSingleThreaded(vector<string>& _fileList, ESortType _sortType, string _ou
             masterStringList.push_back(fileStringList[j]);
         }
     }
-    masterStringList = BubbleSort(masterStringList, _sortType);
+//    masterStringList = BubbleSort(masterStringList, _sortType);
+    masterStringList = MergeSort(masterStringList, _sortType);
     clock_t endTime = clock()/1000;
 
     WriteAndPrintResults(masterStringList, _outputName, endTime - startTime);
@@ -187,13 +192,13 @@ void DoMultiThreaded(vector<string>& _fileList) {
 
         for (unsigned int j = 0; j < fileStringList.size(); ++j) {
             masterStringList1.push_back(fileStringList[j]);
-            masterStringList2.push_back(fileStringList[j]);
-            masterStringList3.push_back(fileStringList[j]);
+//            masterStringList2.push_back(fileStringList[j]);
+//            masterStringList3.push_back(fileStringList[j]);
         }
     }
-    threadMasterList.push_back(masterStringList1);
-    threadMasterList.push_back(masterStringList2);
-    threadMasterList.push_back(masterStringList3);
+//    threadMasterList.push_back(masterStringList1);
+//    threadMasterList.push_back(masterStringList2);
+//    threadMasterList.push_back(masterStringList3);
 
     vector<ESortType>  threadSortType;
     threadSortType.push_back(ESortType::AlphabeticalAscending);
@@ -202,7 +207,8 @@ void DoMultiThreaded(vector<string>& _fileList) {
 
 
     for (unsigned int i = 0; i < 3; ++i) {
-            workerThreads[i] = thread(ThreadedReadFile, threadMasterList[i],threadSortType[i]);
+//            workerThreads[i] = thread(ThreadedReadFile, threadMasterList[i],threadSortType[i]);
+        workerThreads[i] = thread(ThreadedReadFile, masterStringList1,threadSortType[i]);
 //            workerThreads[i].join();
     }
 
@@ -245,7 +251,9 @@ vector<string> ReadFile(string _fileName) {
 //    *_listOut = ReadFile(_fileName);
 //}
 
-void ThreadedReadFile(vector<string> _listToSort, ESortType _sortType) {    string outputName;
+void ThreadedReadFile(vector<string> _listToSort, ESortType _sortType) {
+
+    string outputName;
     switch(_sortType) {
         case ESortType::AlphabeticalAscending:
             outputName = "MultiAscending";
@@ -260,12 +268,14 @@ void ThreadedReadFile(vector<string> _listToSort, ESortType _sortType) {    stri
             break;
     }
     clock_t startTime = clock()/1000;
-    std::cout<<outputName<<" start "<<startTime<<std::endl;
+//    std::cout<<outputName<<" start "<<startTime<<std::endl;
     vector<string> masterStringList;
-    masterStringList = BubbleSort(_listToSort, _sortType);
+    masterStringList = MergeSort(_listToSort, _sortType);
     clock_t endTime = clock()/1000;
-    std::cout<<outputName<<" end "<<endTime<<std::endl;
+//    std::cout<<outputName<<" end "<<endTime<<std::endl;
+//        mtx.lock();
     WriteAndPrintResults(masterStringList, outputName, endTime - startTime);
+//    mtx.unlock();
 
 }
 
@@ -309,7 +319,81 @@ bool LastLetterAscendingStringComparer::IsFirstAboveSecond(string _first, string
     }
     return i == -1 && j >= 0;
 }
-vector<string> BubbleSort(vector<string> _listToSort, ESortType _sortType) {
+
+vector<string> MergeSort(vector<string>& _listToSort, ESortType _sortType) {
+    IStringComparer* stringSorter = nullptr;
+    switch(_sortType) {
+        case ESortType::AlphabeticalAscending:
+            stringSorter = new AlphabeticalAscendingStringComparer();
+            break;
+        case ESortType::AlphabeticalDescending:
+            stringSorter = new AlphabeticalDescendingStringComparer();
+            break;
+        case ESortType::LastLetterAscending:
+            stringSorter = new LastLetterAscendingStringComparer();
+            break;
+        default:
+            break;
+    }
+    int len = _listToSort.size();
+
+    vector<string> sortedList = _listToSort;
+    int left_min;
+    vector<string> temp(len);
+
+    for(int step = 1; step <= len - 1; step = 2 * step)
+    {
+        for( left_min = 0; left_min < len - 1; left_min += step * 2)
+        {
+            int right_max = min(left_min + step * 2 - 1, len - 1);
+            int mid = min(left_min + step - 1, len - 1);
+
+            int i, j, k;
+            int n1 = mid - left_min + 1;
+            int n2 = right_max - mid;
+
+            vector<string> left(n1), right(n2);
+            for(i = 0; i < n1; ++i)
+                left[i] = sortedList[left_min + i];
+            for(j = 0; j < n2; ++j)
+                right[j] = sortedList[mid + 1 + j];
+
+            i = 0;
+            j = 0;
+            k = left_min;
+            while(i < n1 && j < n2)
+            {
+                if(stringSorter->IsFirstAboveSecond(left[i], right[j]))
+                {
+                    sortedList[k] = left[i];
+                    i++;
+                }
+                else
+                {
+                    sortedList[k] = right[j];
+                    j++;
+                }
+                k++;
+            }
+            while(i < n1)
+            {
+                sortedList[k] = left[i];
+                i++;
+                k++;
+            }
+
+            while(j < n2)
+            {
+                sortedList[k] = right[j];
+                j++;
+                k++;
+            }
+        }
+    }
+    return sortedList;
+}
+
+vector<string> BubbleSort(vector<string>& _listToSort, ESortType _sortType) {
     IStringComparer* stringSorter = nullptr;
     switch(_sortType) {
         case ESortType::AlphabeticalAscending:
