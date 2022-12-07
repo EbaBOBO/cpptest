@@ -72,7 +72,7 @@ using namespace std;
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Definitions and Declarations
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-#define MULTITHREADED_ENABLED 0
+#define MULTITHREADED_ENABLED 1
 
 enum class ESortType { AlphabeticalAscending, AlphabeticalDescending, LastLetterAscending };
 
@@ -96,11 +96,15 @@ public:
     bool IsFirstAboveSecond(string _first, string _second);
 };
 void DoSingleThreaded(vector<string>& _fileList, ESortType _sortType, string _outputName);
-void DoMultiThreaded(vector<string> _fileList, ESortType _sortType, string _outputName);
+//void DoMultiThreaded(vector<string> _fileList, ESortType _sortType, string _outputName);
+void DoMultiThreaded(vector<string>& _fileList);
 vector<string> ReadFile(string _fileName);
-void ThreadedReadFile(string _fileName, vector<string>* _listOut);
+//void ThreadedReadFile(string _fileName, vector<string>* _listOut);
+void ThreadedReadFile(vector<string> _listToSort, ESortType _sortType);
 vector<string> BubbleSort(vector<string> _listToSort, ESortType _sortType);
 void WriteAndPrintResults(const vector<string>& _masterStringList, string _outputName, int _clocksTaken);
+
+void test();
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Main
@@ -115,13 +119,20 @@ int main() {
         }
     }
     // Do the stuff
+    clock_t startTime = clock()/1000;
     DoSingleThreaded(fileList, ESortType::AlphabeticalAscending,	"SingleAscending");
     DoSingleThreaded(fileList, ESortType::AlphabeticalDescending,	"SingleDescending");
     DoSingleThreaded(fileList, ESortType::LastLetterAscending,		"SingleLastLetter");
+    clock_t endTime = clock()/1000;
+    std::cout<<"single thread total time: "<<endTime - startTime<<std::endl;
 #if MULTITHREADED_ENABLED
-    DoMultiThreaded(fileList, ESortType::AlphabeticalAscending,		"MultiAscending");
-	DoMultiThreaded(fileList, ESortType::AlphabeticalDescending,	"MultiDescending");
-	DoMultiThreaded(fileList, ESortType::LastLetterAscending,		"MultiLastLetter");
+//    DoMultiThreaded(fileList, ESortType::AlphabeticalAscending,		"MultiAscending");
+//	DoMultiThreaded(fileList, ESortType::AlphabeticalDescending,	"MultiDescending");
+//	DoMultiThreaded(fileList, ESortType::LastLetterAscending,		"MultiLastLetter");
+    clock_t multiStartTime = clock()/1000;
+    DoMultiThreaded(fileList);
+    clock_t multiEndTime = clock()/1000;
+    std::cout<<"multi thread total time: "<<multiEndTime - multiStartTime<<std::endl;
 #endif
 
     // Wait
@@ -148,20 +159,64 @@ void DoSingleThreaded(vector<string>& _fileList, ESortType _sortType, string _ou
     WriteAndPrintResults(masterStringList, _outputName, endTime - startTime);
 }
 
-void DoMultiThreaded(vector<string> _fileList, ESortType _sortType, string _outputName) {
+//void DoMultiThreaded(vector<string> _fileList, ESortType _sortType, string _outputName) {
+//    clock_t startTime = clock();
+//    vector<string> masterStringList;
+//    vector<thread> workerThreads(_fileList.size());
+//    for (unsigned int i = 0; i < _fileList.size() - 1; ++i) {
+//        workerThreads[i] = thread(ThreadedReadFile, _fileList[i], &masterStringList);
+//    }
+//
+//    workerThreads[workerThreads.size() - 1].join();
+//
+//    masterStringList = BubbleSort(masterStringList, _sortType);
+//    clock_t endTime = clock();
+//
+//    WriteAndPrintResults(masterStringList, _outputName, endTime - startTime);
+//}
+
+void DoMultiThreaded(vector<string>& _fileList) {
     clock_t startTime = clock();
-    vector<string> masterStringList;
-    vector<thread> workerThreads(_fileList.size());
-    for (unsigned int i = 0; i < _fileList.size() - 1; ++i) {
-        workerThreads[i] = thread(ThreadedReadFile, _fileList[i], &masterStringList);
+    std::cout<<"multi thread start"<<startTime<<std::endl;
+    vector<vector<string>> threadMasterList;
+    vector<string> masterStringList1, masterStringList2, masterStringList3;
+//    std::thread workerThreads[_fileList.size()];
+    std::thread workerThreads[3];
+    for (unsigned int i = 0; i < _fileList.size(); ++i) {
+        vector<string> fileStringList = ReadFile(_fileList[i]);
+
+        for (unsigned int j = 0; j < fileStringList.size(); ++j) {
+            masterStringList1.push_back(fileStringList[j]);
+            masterStringList2.push_back(fileStringList[j]);
+            masterStringList3.push_back(fileStringList[j]);
+        }
+    }
+    threadMasterList.push_back(masterStringList1);
+    threadMasterList.push_back(masterStringList2);
+    threadMasterList.push_back(masterStringList3);
+
+    vector<ESortType>  threadSortType;
+    threadSortType.push_back(ESortType::AlphabeticalAscending);
+    threadSortType.push_back(ESortType::AlphabeticalDescending);
+    threadSortType.push_back(ESortType::LastLetterAscending);
+
+
+    for (unsigned int i = 0; i < 3; ++i) {
+            workerThreads[i] = thread(ThreadedReadFile, threadMasterList[i],threadSortType[i]);
+//            workerThreads[i].join();
     }
 
-    workerThreads[workerThreads.size() - 1].join();
 
-    masterStringList = BubbleSort(masterStringList, _sortType);
-    clock_t endTime = clock();
+    for (int i = 0; i< 3; i++)
+    {
+        workerThreads[i].join();
+    }
 
-    WriteAndPrintResults(masterStringList, _outputName, endTime - startTime);
+}
+
+void test()
+{
+    std::cout<<1<<std::endl;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -186,8 +241,32 @@ vector<string> ReadFile(string _fileName) {
     return listOut;
 }
 
-void ThreadedReadFile(string _fileName, vector<string>* _listOut) {
-    *_listOut = ReadFile(_fileName);
+//void ThreadedReadFile(string _fileName, vector<string>* _listOut) {
+//    *_listOut = ReadFile(_fileName);
+//}
+
+void ThreadedReadFile(vector<string> _listToSort, ESortType _sortType) {    string outputName;
+    switch(_sortType) {
+        case ESortType::AlphabeticalAscending:
+            outputName = "MultiAscending";
+            break;
+        case ESortType::AlphabeticalDescending:
+            outputName = "MultiDescending";
+            break;
+        case ESortType::LastLetterAscending:
+            outputName = "MultiLastLetter";
+            break;
+        default:
+            break;
+    }
+    clock_t startTime = clock()/1000;
+    std::cout<<outputName<<" start "<<startTime<<std::endl;
+    vector<string> masterStringList;
+    masterStringList = BubbleSort(_listToSort, _sortType);
+    clock_t endTime = clock()/1000;
+    std::cout<<outputName<<" end "<<endTime<<std::endl;
+    WriteAndPrintResults(masterStringList, outputName, endTime - startTime);
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
